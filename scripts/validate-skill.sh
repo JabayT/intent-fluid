@@ -19,6 +19,19 @@ pass() {
   echo -e "${GREEN}PASS${NC}: $1"
 }
 
+ALLOWED_TOP_LEVEL=("SKILL.md" "agents" "scripts" "references" "assets")
+
+is_allowed_top_level() {
+  local entry="$1"
+  local allowed
+  for allowed in "${ALLOWED_TOP_LEVEL[@]}"; do
+    if [[ "$entry" == "$allowed" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 # ── Argument check ──────────────────────────────────
 if [[ $# -lt 1 ]]; then
   echo "Usage: bash scripts/validate-skill.sh <skill-directory>"
@@ -53,7 +66,26 @@ else
   pass "SKILL.md exists"
 fi
 
-# ── 4. Extract frontmatter ──────────────────────────
+# ── 4. Skill-local README is forbidden ─────────────
+if [[ -f "$SKILL_DIR/README.md" ]]; then
+  fail "README.md is not allowed inside a skill directory"
+else
+  pass "No skill-local README.md"
+fi
+
+# ── 5. Only approved top-level entries exist ───────
+while IFS= read -r entry; do
+  base=$(basename "$entry")
+  if ! is_allowed_top_level "$base"; then
+    fail "Unsupported top-level entry '$base' in '$DIR_NAME'"
+  fi
+done < <(find "$SKILL_DIR" -mindepth 1 -maxdepth 1 | sort)
+
+if [[ $errors -eq 0 ]]; then
+  pass "Top-level entries match the canonical skill layout"
+fi
+
+# ── 6. Extract frontmatter ──────────────────────────
 # Read between the first two '---' lines
 FRONTMATTER=$(awk '/^---$/{n++; next} n==1{print} n>=2{exit}' "$SKILL_FILE")
 
@@ -62,7 +94,7 @@ if [[ -z "$FRONTMATTER" ]]; then
   exit 1
 fi
 
-# ── 5. Extract 'name' field ─────────────────────────
+# ── 7. Extract 'name' field ─────────────────────────
 NAME=$(echo "$FRONTMATTER" | grep -E '^name:' | head -1 | sed 's/^name:[[:space:]]*//' | sed 's/^["'\'']//' | sed 's/["'\'']$//')
 
 if [[ -z "$NAME" ]]; then
@@ -71,14 +103,14 @@ else
   pass "Frontmatter has 'name': $NAME"
 fi
 
-# ── 6. Name matches directory name ──────────────────
+# ── 8. Name matches directory name ──────────────────
 if [[ -n "$NAME" && "$NAME" != "$DIR_NAME" ]]; then
   fail "Frontmatter name '$NAME' does not match directory name '$DIR_NAME'"
 elif [[ -n "$NAME" ]]; then
   pass "Frontmatter name matches directory name"
 fi
 
-# ── 7. Extract 'description' field ──────────────────
+# ── 9. Extract 'description' field ──────────────────
 DESCRIPTION=$(echo "$FRONTMATTER" | grep -E '^description:' | head -1 | sed 's/^description:[[:space:]]*//' | sed 's/^["'\'']//' | sed 's/["'\'']$//')
 
 if [[ -z "$DESCRIPTION" ]]; then
@@ -87,7 +119,7 @@ else
   pass "Frontmatter has 'description'"
 fi
 
-# ── 8. Description length ≤ 1024 chars ──────────────
+# ── 10. Description length ≤ 1024 chars ─────────────
 if [[ -n "$DESCRIPTION" ]]; then
   DESC_LEN=${#DESCRIPTION}
   if [[ $DESC_LEN -gt 1024 ]]; then

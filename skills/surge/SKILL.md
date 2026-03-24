@@ -61,20 +61,20 @@ Each iteration executes 5 Phases sequentially. The QA conclusion dictates whethe
 
 | Phase | Dispatch Mode | Prompt Source | Details |
 |-------|---------------|---------------|---------|
-| analyze | Single agent | `phases/analyze.md` + topology role + `context.md` | — |
-| research | Single agent (skippable) | `phases/research.md` + `iter_{N}_analyze.md` | — |
-| design | Single agent | `phases/design.md` + analyze + research (if any) | — |
-| implement | Single/Multi agent | `phases/implement.md` + design + `deliverables.md` | See Parallel Orchestration below |
-| qa | Single agent | `phases/qa.md` + implement + `acceptance.md` + `test_cases.md` + eval level | — |
+| analyze | Single agent | `references/phases/analyze.md` + topology role + `context.md` | — |
+| research | Single agent (skippable) | `references/phases/research.md` + `iter_{N}_analyze.md` | — |
+| design | Single agent | `references/phases/design.md` + analyze + research (if any) | — |
+| implement | Single/Multi agent | `references/phases/implement.md` + design + `deliverables.md` | See Parallel Orchestration below |
+| qa | Single agent | `references/phases/qa.md` + implement + `acceptance.md` + `test_cases.md` + eval level | — |
 
 **Phase Invocation Flow**:
-1. Read `phases/{phase}.md` to get the prompt template.
+1. Read `references/phases/{phase}.md` to get the prompt template.
 2. Read `topology.md` to get the customized role for this Phase, replacing the default description after `<!-- DEFAULT_ROLE -->` in the template.
 3. Read required context files and concatenate into a complete subagent prompt.
 4. Dispatch the subagent via the Agent tool.
 5. **[MANDATORY] After subagent returns, show a process summary to the user** (see "Process Output" below). **Do NOT proceed to the next Phase without showing a progress summary.**
 
-> The files under `phases/` are prompt templates. They should be read via the Read tool and injected into the subagent prompt, **NOT invoked via the Skill tool**.
+> The files under `references/phases/` are prompt templates. They should be read via the Read tool and injected into the subagent prompt, **NOT invoked via the Skill tool**.
 
 **File Naming Rules**: All phase output files use `iter_{NN}_{phase}.md` (NN is a 2-digit zero-padded iteration number).
 
@@ -170,7 +170,7 @@ Trigger Events: Requirement ambiguities, reusable components found, solutions re
 
 ## Upon Completion
 
-Dispatch the retro subagent via Agent tool (reading `phases/retro.md`), passing the entire Context Package path.
+Dispatch the retro subagent via Agent tool (reading `references/phases/retro.md`), passing the entire Context Package path.
 
 After retro finishes:
 - Display final deliverables summary and `retro.md` location.
@@ -186,7 +186,7 @@ After retro finishes:
 | `references/qa-handling.md` | QA 3-value logic, convergence, deviations, test evolution, lightweight paths, directive verification | After QA results |
 | `references/state-schema.md` | state.md field definitions and update rules | When updating state |
 | `references/output-structure.md` | Directory structure, file naming rules | When confirming paths |
-| `templates/rules.md` | Stable constraints (NEVER/ALWAYS/PREFER) | Copied to surge_root on start |
+| `assets/rules.md` | Stable constraints (NEVER/ALWAYS/PREFER) | Copied to surge_root on start |
 | `scripts/init.sh` | Initializes Context Package | Startup Step 2 |
 | `scripts/state.sh` | Reads/Updates state.md fields | Every state change |
 | `scripts/merge-parallel.sh` | Merges parallel implement outputs | After parallel implement |

@@ -16,7 +16,7 @@ As software creators and game producers, our greatest asset is our ideas. Yet, a
 
 We spend invaluable cognitive energy fighting boilerplate, syntax, APIs, and infrastructure configuration. This friction destroys **Flow**.
 
-**Intent-Fluid** is a curated collection of SKILLs, Tools, and Workflows designed to bridge this chasm. It embodies a new paradigm where human intention is the primary input, and AI acts as the adaptive catalyst that materializes that intention without requiring us to get bogged down in low-level code.
+**Intent-Fluid** is a curated collection of AI SKILLs designed to bridge this chasm. It embodies a new paradigm where human intention is the primary input, and AI acts as the adaptive catalyst that materializes that intention without requiring us to get bogged down in low-level code.
 
 Here, we don't just write code; we orchestrate intelligence.
 
@@ -30,25 +30,18 @@ Here, we don't just write code; we orchestrate intelligence.
 
 ## 🏗️ Architecture
 
-This repository is structured around the three pillars of my digital agentic brain:
+### `/skills` — Cognitive Patterns
 
-### 🧠 1. `/skills` (Cognitive Patterns)
-A library of structured prompts, chain-of-thought methodologies, and agent configurations (JSON/YAML). These are the "mental models" provided to LLMs to perform specialized tasks in game logic design, asset generation pipelines, or complex analysis.
-
-### 🔧 2. `/tools` (Atomic Action)
-Refined CLI utilities, lightweight Python scripts, and API connectors. These are the "hands" of the system, designed to be called automatically by AI Agents to perform atomic operations (e.g., modifying a game config, bulk-processing images, interacting with chain data).
-
-### ⚙️ 3. `/workflows` (Synthesized Flow)
-End-to-end automation recipes that chain Skills and Tools together. This is where the "Fluidity" happens—connecting disparate systems into a cohesive, self-executing process based on high-level commands.
+A library of structured prompts, chain-of-thought methodologies, and agent configurations. Each skill lives in its own directory under `skills/` with a `SKILL.md` manifest that defines when and how to activate it. See the [Skill Specification](docs/SKILL_SPEC.md) for the canonical format.
 
 ---
 
 ## 🧬 Use Cases (The Flow in Action)
 
 * **The Intent:** "I need to balance the economy for Level 10-20 in the new RPG module based on these player telemetry logs."
-    * *The Fluid Workflow:* AI Skill analyzes logs -> Calls Tool to generate new config CSV -> AI Skill validates config against game rules -> Tool opens a PR.
-* **The Intent:** "I want to test a new trading algorithm based on the sentiment analysis of these X (Twitter) lists."
-    * *The Fluid Workflow:* Tool scrapes data -> AI Skill analyzes sentiment -> Tool executes backtest against historical data -> Presents a visualization.
+    * *The Fluid Workflow:* Provide a PRD → the **surge** skill orchestrates analysis, design, implementation, and QA automatically.
+* **The Intent:** "I want to build a user authentication system from this spec document."
+    * *The Fluid Workflow:* Hand the spec to a skill → it drives multi-phase delivery with convergence detection, producing production-ready deliverables.
 
 ---
 
@@ -93,13 +86,11 @@ git clone https://github.com/carbonshow/intent-fluid.git
 3. Create your skill under `skills/<your-skill-name>/`
 4. Validate: `bash scripts/validate-skill.sh skills/<your-skill-name>`
 
-### Exploring Patterns
+### Exploring the Codebase
 
-Since this is a personal workshop, many tools are configured for my specific environment. However, the *patterns* are universal.
-
-1.  **Explore `/workflows`:** Identify a process that consumes too much of your time.
-2.  **Adapt the `/skills`:** Look at how I structure prompts to force LLMs into professional, structured thinking.
-3.  **Integrate `/tools`:** Use my atomic scripts as templates for your own API integrations.
+1.  **Study the [Skill Spec](docs/SKILL_SPEC.md):** Understand the canonical format for skill authoring.
+2.  **Read `/skills/surge`:** See how a production skill is structured with references, scripts, and assets.
+3.  **Adapt the patterns:** Use the prompt structures as templates for your own AI-assisted workflows.
 
 ---
 

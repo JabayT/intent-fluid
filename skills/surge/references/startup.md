@@ -20,7 +20,7 @@ Determine in the following priority:
 
 After determining:
 - Ensure `{surge_root}/tasks/` and `{surge_root}/candidates/` directories exist (create if not).
-- Ensure `{surge_root}/rules.md` exists (copy from `templates/rules.md` if not).
+- Ensure `{surge_root}/rules.md` exists (copy from `assets/rules.md` if not).
 
 > **All `{surge_root}` in subsequent documents refer to the actual path determined in this step.**
 

@@ -11,7 +11,7 @@ This document defines the directory structure and file naming conventions for su
 ├── tasks/                  ← Root directory for all tasks
 │   └── {task_id}/          ← Context Package for a single task
 ├── candidates/             ← Storage area for candidate SKILLs
-└── rules.md                ← Global rules (initialized from templates/rules.md)
+└── rules.md                ← Global rules (initialized from assets/rules.md)
 ```
 
 ---

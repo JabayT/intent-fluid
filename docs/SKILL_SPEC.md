@@ -1,118 +1,228 @@
 # Skill Developer Specification
 
-> Version 1.0 — Canonical reference for authoring intent-fluid skills.
+> Version 2.0 — the only canonical standard for authoring skills in intent-fluid.
 
-## 1. Directory Layout
+## 1. Goal
 
-Every skill lives under `skills/<skill-name>/`. The directory name **is** the skill identifier.
+This document is the single source of truth for skill structure in this repository.
 
-```
+Its purpose is to keep every skill small, predictable, and publishable across multiple authors. If any older README, template, or existing skill conflicts with this file, follow this file.
+
+## 2. Core Principles
+
+1. **`SKILL.md` is the product.** The main asset of a skill is its trigger metadata plus its operating instructions.
+2. **Keep context lean.** Assume the model is already capable; only include repository-specific workflow, constraints, and resources it cannot infer.
+3. **Prefer progressive disclosure.** Keep `SKILL.md` focused; move detailed material into `references/` and load it only when needed.
+4. **Bundle only necessary resources.** If a file does not directly help the agent execute the skill, it should not live inside the skill.
+5. **Do not add README by default.** Human-facing duplication inside a skill causes drift. A skill directory should usually contain only `SKILL.md` plus the minimum supporting resources.
+
+## 3. Canonical Directory Layout
+
+Every skill lives under `skills/<skill-name>/`. The directory name is the skill identifier.
+
+Minimal layout:
+
+```text
 skills/<skill-name>/
-├── SKILL.md            # REQUIRED — manifest + prompt
-├── README.md           # optional — human-readable documentation
-├── phases/             # optional — phase prompt templates
-├── references/         # optional — reference documentation
-├── scripts/            # optional — helper scripts
-├── templates/          # optional — reusable templates
-├── agents/             # optional — sub-agent configurations
-└── commands/           # optional — slash-command definitions
+`-- SKILL.md
 ```
 
-## 2. Naming Rules
+Allowed extended layout:
+
+```text
+skills/<skill-name>/
+|-- SKILL.md                # required
+|-- agents/                 # optional, recommended for UI metadata only
+|   `-- openai.yaml
+|-- scripts/                # optional, executable helpers
+|-- references/             # optional, on-demand reference docs or prompt fragments
+`-- assets/                 # optional, files used in output but not meant for context loading
+```
+
+### Directory Policy
+
+- `SKILL.md` is required.
+- `agents/`, `scripts/`, `references/`, and `assets/` are allowed.
+- Other top-level directories are not part of the standard and should be avoided unless the repo standard is explicitly extended.
+- `README.md` inside a skill is discouraged and should be treated as a spec violation in this repository.
+- If you think you need `phases/` or `templates/`, put those files under `references/` or `assets/` instead:
+  - prompt fragments and phase instructions belong in `references/`
+  - copyable runtime templates belong in `assets/`
+
+## 4. Naming Rules
 
 | Rule | Detail |
 |------|--------|
-| Character set | `[a-z0-9-]` only (lowercase, digits, hyphens) |
-| Consistency | Directory name **must** match the `name` field in SKILL.md frontmatter |
-| Length | 2–50 characters recommended |
+| Character set | `[a-z0-9-]` only |
+| Consistency | Directory name must exactly match the `name` field in `SKILL.md` |
+| Length | 2-50 characters recommended |
 
-**Examples:** `surge`, `code-review`, `tdd-guard`
+Examples: `surge`, `code-review`, `tdd-guard`
 
-## 3. SKILL.md Format
+## 5. `SKILL.md` Contract
 
-SKILL.md consists of two parts: **YAML frontmatter** and **Markdown body**.
+`SKILL.md` has two parts: YAML frontmatter and a Markdown body.
 
-### 3.1 Frontmatter Schema
+### 5.1 Required Frontmatter
 
 ```yaml
 ---
-# ── Required ──────────────────────────────────────
-name: "my-skill"                  # string — must match directory name
-description: "Use when ..."       # string, ≤ 1024 chars — trigger conditions only
-
-# ── Optional ──────────────────────────────────────
-version: "1.0.0"                  # semver string
-author: "username"                # string
-tags: [tag1, tag2]                # string[] — categorization keywords
-platforms: [claude, cursor, gemini]  # string[] — supported AI platforms
+name: my-skill
+description: "Use when ..."
 ---
 ```
 
-#### Field Details
+### 5.2 Supported Frontmatter Fields
 
-| Field | Required | Type | Constraints | Purpose |
-|-------|----------|------|-------------|---------|
-| `name` | ✅ | string | `[a-z0-9-]`, 2–50 chars | Unique skill identifier |
-| `description` | ✅ | string | ≤ 1024 characters | Tells the AI **when** to activate this skill. Write only trigger conditions — not what the skill does internally. |
-| `version` | ❌ | string | [semver](https://semver.org) | Independent of repo version; tracks skill-level changes |
-| `author` | ❌ | string | — | Original author |
-| `tags` | ❌ | string[] | — | Discovery & categorization |
-| `platforms` | ❌ | string[] | Known values: `claude`, `cursor`, `gemini` | Declares platform compatibility |
+```yaml
+---
+name: my-skill
+description: "Use when ..."
+version: "1.0.0"
+author: your-name
+tags: [tag1, tag2]
+platforms: [claude, cursor, gemini]
+---
+```
 
-### 3.2 Markdown Body
+| Field | Required | Constraints | Notes |
+|-------|----------|-------------|-------|
+| `name` | yes | `[a-z0-9-]`, should match directory name | canonical skill id |
+| `description` | yes | <= 1024 chars | must describe when to activate the skill, not how it works |
+| `version` | no | semver recommended | per-skill version |
+| `author` | no | free text | skill author |
+| `tags` | no | string array | discovery only |
+| `platforms` | no | array of `claude`, `cursor`, `gemini` | compatibility declaration |
 
-Everything after the closing `---` of the frontmatter is the **skill prompt**. This content is injected verbatim into the AI's context when the skill is activated.
+### 5.3 Body Requirements
 
-Guidelines:
+The Markdown body should:
 
-- Start with a `# <skill-name>` heading
-- Write in second person ("You are…", "Your role is…")
-- Structure with clear sections (## headings)
-- Include failure modes / gotchas near the top
-- Reference sub-files with relative paths (`phases/analyze.md`, `references/startup.md`)
+- start with `# <skill-name>`
+- describe the agent role in second person
+- keep core workflow in the main file
+- list high-risk gotchas near the top when the workflow is fragile
+- point to bundled resources with relative paths
+- stay concise; split out large details before `SKILL.md` becomes bloated
 
-## 4. Optional Sub-directories
+### 5.4 Body Size Guidance
 
-| Directory | Purpose | Convention |
-|-----------|---------|------------|
-| `phases/` | Phase-specific prompt templates | One `.md` per phase, named after the phase |
-| `references/` | Detailed reference docs the skill may read | Stable documentation, rarely changes |
-| `scripts/` | Shell/Python helper scripts | Must be executable, include usage comments |
-| `templates/` | Reusable file templates | Copied or adapted during execution |
-| `agents/` | Sub-agent configuration files | Agent role definitions |
-| `commands/` | Slash-command definitions | Platform-specific command integrations |
+- Keep `SKILL.md` under 500 lines whenever practical.
+- When the skill supports multiple variants, keep only routing logic in `SKILL.md` and move variant details into `references/`.
+- For large reference files, add a short table of contents near the top.
 
-## 5. Validation
+## 6. Resource Rules
 
-Run the validation script to check compliance:
+### `references/`
+
+Use for material that may be read into context on demand:
+
+- detailed workflow notes
+- API or schema references
+- phase prompt fragments
+- domain-specific guides
+
+Rules:
+
+- do not duplicate content already written in `SKILL.md`
+- keep references one level away from `SKILL.md`; avoid deep reference chains
+- if a file is large, mention in `SKILL.md` when to read it
+
+### `scripts/`
+
+Use for deterministic or repetitive operations.
+
+Rules:
+
+- prefer a script when the same logic would otherwise be re-described repeatedly
+- scripts should be executable and have a clear usage comment
+- `SKILL.md` should tell the agent when to invoke the script
+
+### `assets/`
+
+Use for files that support outputs but should not normally be loaded into context.
+
+Examples:
+
+- runtime templates copied into a workspace
+- icons, sample files, fonts
+- boilerplate output artifacts
+
+## 7. Deliberately Excluded Files
+
+Do not place these inside a skill directory unless this spec is explicitly changed:
+
+- `README.md`
+- `CHANGELOG.md`
+- `INSTALLATION_GUIDE.md`
+- `QUICK_REFERENCE.md`
+- ad hoc notes about how the skill was authored
+
+Repository-level documentation belongs under `docs/`, not inside each skill.
+
+## 8. Recommended `agents/openai.yaml`
+
+If a skill is intended to appear in a UI list or skill picker, add:
+
+```text
+skills/<skill-name>/agents/openai.yaml
+```
+
+Rules:
+
+- generate it from the actual `SKILL.md` content
+- keep it aligned with the skill when the skill changes
+- do not invent UI metadata that is unsupported by the skill itself
+
+## 9. Validation Rules
+
+Every skill must pass:
 
 ```bash
 bash scripts/validate-skill.sh skills/<skill-name>
 ```
 
-The script checks:
-- SKILL.md exists
-- Frontmatter contains `name` and `description`
-- `name` matches directory name
-- `description` ≤ 1024 characters
-- Directory name uses only `[a-z0-9-]`
+The repository validator enforces at least:
 
-## 6. Example
+- valid skill directory name
+- `SKILL.md` exists
+- YAML frontmatter exists
+- `name` exists and matches the directory name
+- `description` exists and is within the length limit
+- `README.md` is absent
+- only allowed top-level entries exist inside the skill directory
 
-A minimal, valid skill:
+## 10. Minimal Example
 
-```
+```text
 skills/hello-world/
-└── SKILL.md
+`-- SKILL.md
 ```
 
-```yaml
+```markdown
 ---
 name: hello-world
-description: "Use when the user asks for a greeting or hello-world example in any programming language."
+description: "Use when the user asks for a greeting or hello-world example in a programming language."
+version: "0.1.0"
 ---
 
 # hello-world
 
-You are a friendly coding assistant. When the user asks for a hello-world example, provide clean, idiomatic code in their requested language with brief explanatory comments.
+You are a focused coding assistant for hello-world examples.
+
+## Workflow
+
+1. Detect the requested language.
+2. Produce the smallest idiomatic example.
+3. Add only the minimum explanation needed.
 ```
+
+## 11. Migration Rule
+
+When upgrading an older skill to this standard:
+
+1. remove `README.md` from the skill directory
+2. move prompt fragments from `phases/` into `references/`
+3. move copyable templates from `templates/` into `assets/`
+4. update `SKILL.md` links to match the new layout
+5. run the validator
