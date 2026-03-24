@@ -1,6 +1,6 @@
-# surge — Structured Expert Multi-Agent System
+# surge
 
-Dynamically orchestrates a professional team via a Director Agent, autonomously approaching the optimal solution for complex problems through multi-round iterations.
+Like a relentless wave, surge drives autonomously toward project completion — orchestrating expert collaboration through iterative momentum while evolving its own processes with each cycle.
 
 ## Core Concept
 
