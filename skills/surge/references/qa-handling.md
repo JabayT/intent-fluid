@@ -14,6 +14,14 @@ All acceptance items passed, all quality dimensions ≥ Good.
 
 **Handling**: Update `state.md`: set `current_phase` to `retro`, `status` to `done`, enter retro.
 
+### Director Override: Pass-Optimizable → Converged
+
+The QA subagent may output "Pass-Optimizable" even when all quality dimensions are ≥ Good (e.g., because it identifies High/Medium benefit improvements). In this case, the **Director** applies the following override rule:
+
+> When ALL quality dimensions are ≥ Good AND all acceptance criteria at the current evaluation level pass, the Director SHOULD declare convergence and enter retro, regardless of the QA subagent's three-value output.
+
+This prevents the common failure mode where QA never outputs "Pass-Converged" due to conservative judgment. The QA subagent's optimization gradients are still recorded in `quality_history` for the retro phase.
+
 ### Conclusion: Pass-Optimizable
 
 All acceptance items passed, but some quality dimensions still have room for improvement. **Director executes convergence detection.**

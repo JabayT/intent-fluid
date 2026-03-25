@@ -32,6 +32,10 @@ This document defines the directory structure and file naming conventions for su
 │   ├── .gitkeep
 │   ├── iter_01_analyze.md
 │   ├── iter_01_research.md
+│   ├── iter_01_research/            # Raw research materials (WebSearch/WebFetch results)
+│   │   ├── 001_search_xxx.md
+│   │   ├── 002_fetch_yyy.md
+│   │   └── ...
 │   ├── iter_01_design.md
 │   ├── iter_01_implement.md
 │   ├── iter_01_qa.md
@@ -81,6 +85,62 @@ iter_{NN}_implement_{module}.md
 
 After all parallel subagents complete, the Director merges the module outputs into `iter_{NN}_implement.md`.
 
+### Expert Review Output Files (design phase)
+
+During the design phase's expert review steps, each expert subagent produces an individual review, and the Director generates a synthesis report:
+
+```
+iter_{NN}_expert_review_{role_slug}.md
+iter_{NN}_expert_synthesis.md
+```
+
+| Placeholder | Description | Example |
+|-------------|-------------|---------|
+| `{role_slug}` | Expert role title, lowercased, spaces → underscores | `backend_architect`, `security_expert` |
+
+**Examples**:
+- `iter_01_expert_review_backend_architect.md` — Round 1 Backend Architect's review
+- `iter_01_expert_review_security_expert.md` — Round 1 Security Expert's review
+- `iter_01_expert_synthesis.md` — Round 1 consolidated synthesis report
+
+### Research Raw Material Files
+
+During the research phase, each WebSearch/WebFetch call is persisted as an individual file in a dedicated subdirectory:
+
+```
+iterations/iter_{NN}_research/{seq}_{type}_{slug}.md
+```
+
+| Placeholder | Description | Example |
+|-------------|-------------|---------|
+| `{seq}` | 3-digit zero-padded global sequence number (increments across all layers/directions) | `001`, `002`, `013` |
+| `{type}` | `search` (WebSearch) or `fetch` (WebFetch) | `search` |
+| `{slug}` | Sanitized query/URL: lowercase, spaces→hyphens, non-alphanumeric stripped (keep hyphens), max 40 chars, no trailing hyphen | `react-server-components` |
+
+Each file contains YAML frontmatter followed by the full raw content:
+
+```yaml
+---
+seq: 1
+type: search | fetch
+query: "search query or fetched URL"
+direction: "parent research direction name"
+layer: 2
+timestamp: 2026-03-25T10:30:00
+relevance: 4
+importance: 5
+---
+
+[Full raw content — no truncation]
+```
+
+- `relevance` and `importance` are initially `null`, backfilled after scoring in Step 2.2.
+- For `fetch` type, `query` contains the URL. For `search` type, `query` contains the search query string.
+
+**Examples**:
+- `iter_01_research/001_search_react-server-components.md`
+- `iter_01_research/002_fetch_vercel-docs-isr.md`
+
 ---
 
 ## Output Files for Each Phase
@@ -88,8 +148,10 @@ After all parallel subagents complete, the Director merges the module outputs in
 | Phase | Output File | Description |
 |-------|-------------|-------------|
 | analyze | `iter_{NN}_analyze.md` | Requirements analysis report |
-| research | `iter_{NN}_research.md` | Tech research report (optional, skippable) |
+| research | `iter_{NN}_research.md` + `iter_{NN}_research/` | Tech research summary (by summary subagent) + raw materials directory (by search subagents during Director loop); optional, skippable |
 | design | `iter_{NN}_design.md` | Architecture design doc, incl. parallel task list |
+| design (expert review) | `iter_{NN}_expert_review_{role_slug}.md` | Individual expert review from each panel member |
+| design (synthesis) | `iter_{NN}_expert_synthesis.md` | Consolidated expert review synthesis report |
 | implement | `iter_{NN}_implement.md` | Implementation report (merged file if parallel) |
 | implement (parallel sub) | `iter_{NN}_implement_{module}.md` | Independent report for each parallel module |
 | qa | `iter_{NN}_qa.md` | QA acceptance report, incl. three-value conclusion |

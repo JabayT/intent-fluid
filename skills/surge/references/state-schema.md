@@ -24,6 +24,9 @@ status: "in_progress"                   # string  — Overall task status
 max_iterations: 5                       # number  — Max allowed iterations
 parallel_agent_limit: 10                 # number  — Max parallel agents limit
 notes: ""                               # string  — Free-form notes
+expert_roles: []                       # array   — Current task's expert role list (e.g., ["Backend Architect", "Security Expert"])
+design_checkpoint: null                # string? — Design phase progress: candidates_shown / experts_confirmed / review_done / design_confirmed
+expert_review_summary: null            # string? — Path to latest expert review synthesis report
 ```
 
 ---
@@ -131,13 +134,13 @@ notes: ""                               # string  — Free-form notes
 ### max_iterations
 - **Type**: number
 - **Default**: `5`
-- **Update Timing**: Parsed from user input in Step 2; user can adjust when limit reached.
+- **Update Timing**: Defaults to 5; can be overridden by user during Step 3 (Topology) confirmation or via config.json.
 - **Description**: Max allowed iteration rounds.
 
 ### parallel_agent_limit
 - **Type**: number
 - **Default**: `10`
-- **Update Timing**: Parsed from user input in Step 2.
+- **Update Timing**: Defaults to 10; can be overridden by user during Step 3 (Topology) confirmation or via config.json.
 - **Description**: Max parallel agents limit in implement phase.
 
 ### notes
@@ -145,6 +148,33 @@ notes: ""                               # string  — Free-form notes
 - **Default**: `""`
 - **Update Timing**: Director records notes as needed.
 - **Description**: Free-form notes field.
+
+### expert_roles
+- **Type**: array
+- **Default**: `[]`
+- **Update Timing**: Set at design phase Checkpoint 2 when user confirms the expert panel.
+- **Persistence**: Persists across iterations. Preserved on Level 2 rollback (user can opt to change). Preserved during lightweight iterations. Only cleared on Level 3 rollback (requirements changed).
+- **Description**: List of confirmed expert role titles for the current task. Used to reuse the panel across iterations without re-asking the user.
+
+### design_checkpoint
+- **Type**: string | null
+- **Allowed Values**: `null` | `"candidates_shown"` | `"experts_confirmed"` | `"review_done"` | `"design_confirmed"`
+- **Default**: `null`
+- **Update Timing**: Reset to `null` when entering the design phase. Updated at each checkpoint within the design phase.
+- **Reset Conditions**:
+  - Entering design phase (any iteration): Reset to `null`
+  - Fail (any deviation level): Reset to `null`
+  - Pass-Converged: Frozen with final value
+- **Description**: Tracks progress through the design phase's 4 user checkpoints. Prevents the Director from skipping steps and enables resumption if interrupted.
+
+### expert_review_summary
+- **Type**: string | null
+- **Default**: `null`
+- **Update Timing**: Set after the expert synthesis report is generated (Step 5). Updated with new path on each design iteration.
+- **Reset Conditions**:
+  - Fail (any deviation level): Reset to `null`
+  - Pass-Converged: Frozen with final value
+- **Description**: Absolute path to the latest expert review synthesis report. Used by the Director to reference expert recommendations during detailed design.
 
 ---
 
@@ -157,6 +187,9 @@ QA Conclusion: Fail
   → plateau_count = 0 (Reset)
   → quality_history appends this round
   → optimization_directives = [] (Clear)
+  → design_checkpoint = null (Reset)
+  → expert_review_summary = null (Reset)
+  → expert_roles preserved (unless Level 3)
 
 QA Conclusion: Pass-Optimizable (Unconverged)
   → current_eval_level = May elevate
@@ -165,6 +198,9 @@ QA Conclusion: Pass-Optimizable (Unconverged)
   → plateau_count = +1 if tier/positioning both identical, else 0
   → optimization_directives = Filtered directives list
   → iteration +1
+  → design_checkpoint = null if re-entering design (Reset at phase entry)
+  → expert_roles preserved
+  → expert_review_summary updated if design re-runs
 
 QA Conclusion: Pass-Converged / Pass-Optimizable (Converged)
   → status = "done"
@@ -172,6 +208,9 @@ QA Conclusion: Pass-Converged / Pass-Optimizable (Converged)
   → quality_history appends this round (Final record)
   → last_quality_assessment = This round's summary (Available for retro)
   → optimization_directives remains unchanged
+  → design_checkpoint frozen
+  → expert_review_summary frozen
+  → expert_roles frozen
 
 Acceptance Criteria Modified
   → acceptance_modifications +1
@@ -186,3 +225,38 @@ Acceptance Criteria Modified
 - Update `current_phase` before entering each new Phase.
 - `iteration` +1 at the start of each iteration.
 - Batch update relevant fields when processing QA results.
+
+---
+
+## scripts/state.sh Usage and Constraints
+
+### Runtime Prerequisite
+
+`state.sh` requires **Node.js** (any version with `fs` module — Node 12+). If Node.js is not available in the environment, the Director must fall back to manual Read/Edit operations on `state.md`, following the format constraints below strictly.
+
+### YAML Format Constraints
+
+`state.sh` uses regex-based parsing (not a full YAML parser). To ensure correct read/write behavior, `state.md` MUST adhere to these format rules:
+
+1. **Root-level fields only**: Every field starts at column 0 with `field_name:`. No nested YAML objects at the root level.
+2. **Single-line scalar values**: Strings, numbers, and `null` are written on the same line as the key (e.g., `current_phase: analyze`).
+3. **Quoted strings stay quoted**: Fields initialized with quotes (e.g., `iteration_type: "full"`) must remain quoted on update. `state.sh` preserves quoting automatically.
+4. **Array indentation**: Array fields (`quality_history`, `optimization_directives`, `expert_roles`) use YAML block sequence format with **2-space indentation** for each `- ` element. Example:
+   ```yaml
+   quality_history:
+     - iteration: 1
+       dimensions: "..."
+       conclusion: "Pass-Optimizable"
+     - iteration: 2
+       dimensions: "..."
+       conclusion: "Pass-Converged"
+   ```
+5. **No inline comments after values**: Comments are allowed only on their own line or at the end of the initial template. Do not add comments after values during updates (e.g., do NOT write `iteration: 3  # bumped`).
+6. **No duplicate field names**: Each field name appears exactly once. Duplicate names cause the regex to match only the first occurrence.
+7. **Values must not contain unescaped colons at line start**: If a multi-line value contains a line starting with `word:`, it will be misinterpreted as a new field. Indent such lines by at least 2 spaces.
+
+### Argument Order Reminder
+
+The correct argument order is: `state.sh <subcommand> <state_file> <field> [value]`
+
+A common error is: `state.sh <state_file> <subcommand> ...` — this produces the confusing message `Error: state file does not exist: set` because it interprets the subcommand as the file path.
