@@ -22,7 +22,7 @@ The current surge design phase operates as a black box: it generates 2-3 solutio
 
 ## Redesigned Design Phase Flow
 
-The current 8-step linear flow becomes a 10-step flow with 4 user checkpoints. The design phase dispatch model changes from **single agent** to **Director-orchestrated**: the Director remains active throughout Steps 2-7, dispatching expert subagents in parallel and gating user checkpoints, rather than handing off to a single design agent.
+The current 8-step linear flow becomes a 10-step flow with 4 user checkpoints. The design phase dispatch model changes from **single agent** to **Director-orchestrated**: the Director remains active throughout Steps 1-7, dispatching expert subagents in parallel and gating user checkpoints, rather than handing off to a single design agent.
 
 ```
 Step 1: Solution Conception (unchanged)
