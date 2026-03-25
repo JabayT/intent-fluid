@@ -90,7 +90,7 @@ design_checkpoint: null        # Design phase progress tracking
 expert_review_summary: null    # Path to latest expert review synthesis report
 ```
 
-Parse `max_iterations` and `parallel_agent_limit` from user input to override defaults 5 and 10 respectively.
+Parse `max_iterations` and `parallel_agent_limit` from user input during Step 3 (Topology confirmation) or config.json to override defaults 5 and 10 respectively.
 
 ---
 

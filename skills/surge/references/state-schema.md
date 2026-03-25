@@ -134,13 +134,13 @@ expert_review_summary: null            # string? — Path to latest expert revie
 ### max_iterations
 - **Type**: number
 - **Default**: `5`
-- **Update Timing**: Parsed from user input in Step 2; user can adjust when limit reached.
+- **Update Timing**: Defaults to 5; can be overridden by user during Step 3 (Topology) confirmation or via config.json.
 - **Description**: Max allowed iteration rounds.
 
 ### parallel_agent_limit
 - **Type**: number
 - **Default**: `10`
-- **Update Timing**: Parsed from user input in Step 2.
+- **Update Timing**: Defaults to 10; can be overridden by user during Step 3 (Topology) confirmation or via config.json.
 - **Description**: Max parallel agents limit in implement phase.
 
 ### notes

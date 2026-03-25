@@ -4,7 +4,7 @@ These rules codify stable constraints validated during surge execution, using th
 
 ## NEVER
 
-- NEVER let phase skills read or write `state.md`; `state.md` is maintained exclusively by the Director (`surge`).
+- NEVER let phase subagents read or write `state.md`; `state.md` is maintained exclusively by the Director (`surge`).
 - NEVER write retrospective suggestions directly to `CLAUDE.md` or modify this file without user confirmation; output drafts first (`CLAUDE_updates_draft.md` / `RULES_updates_draft.md`).
 - NEVER exceed the `parallel_agent_limit` during the parallel implementation phase; the excess must be processed serially in the current round.
 - NEVER assign a single deliverable with an estimated workload of "large" or "xlarge" to a single agent to complete all at once in the implement phase; it must be pre-split into multiple Parts during the topology or design phase, keeping the estimated output volume of each Part within 70% of the agent's single-output limit.
