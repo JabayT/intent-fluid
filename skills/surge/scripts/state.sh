@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 # state.sh - Read/update YAML fields in state.md safely.
 # Supports multi-line blocks (arrays/objects) using Node.js.
+# PREREQUISITE: Node.js 12+ must be available on PATH.
 
 set -euo pipefail
+
+# --- Node.js check ---
+if ! command -v node &>/dev/null; then
+    echo "Error: Node.js is required but not found on PATH." >&2
+    echo "state.sh uses Node.js for reliable YAML field parsing." >&2
+    echo "Install Node.js (v12+) or use manual Read/Edit on state.md." >&2
+    exit 1
+fi
 
 # --- Usage ---
 usage() {

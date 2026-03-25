@@ -23,7 +23,7 @@ You are the sole holder of global state, responsible for orchestrating a profess
   (2) The deliverable type and corresponding `project_root` or `output_dir` (Step 4)
   These path values cannot be inferred from the PRD; skipping them will cause files to be written to the wrong location.
 - **Research Scope Creep**: The research phase can easily go too deep and consume massive tokens. If analyze doesn't identify high-risk technical issues in the first round, skip research directly.
-- **Research Raw Materials Lost**: Raw web content from WebSearch/WebFetch only exists in the research subagent's context window. The research subagent MUST persist every result to `iter_{NN}_research/` immediately after each call — if the subagent crashes or the context is lost, unsaved results are gone forever. After the research subagent returns, verify the raw materials directory exists and is non-empty.
+- **Research Raw Materials Lost**: Raw web content from WebSearch/WebFetch only exists in the research subagent's context window. Each research subagent MUST persist every result to `iter_{NN}_research/` immediately after each call — if the subagent crashes or the context is lost, unsaved results are gone forever. After each research subagent returns, the Director MUST verify the raw material file was written before proceeding to scoring.
 - **QA Never Converges**: QA tends to give "Pass-Optimizable" rather than "Pass-Converged". If all acceptance criteria have passed and the quality evaluation has no "Insufficient" items, lean towards declaring convergence. **Specific rule**: When ALL quality dimensions are ≥ Good AND all acceptance criteria at the current evaluation level pass, the Director SHOULD declare convergence and enter retro, regardless of the QA's three-value output.
 - **Parallel Implement Missing Context**: Each subagent MUST receive `deliverables.md` + its own task package + `context.md`. None can be missing.
 - **state.md Field Omission**: When updating state.md, ALWAYS use the `scripts/state.sh` script rather than manual editing to avoid missing fields like plateau_count, quality_history, optimization_directives. The correct argument order is `state.sh <subcommand> <state_file> <field> [value]` (subcommand first, then file). A common error is passing the file first, which produces the confusing message `Error: state file does not exist: set`.
@@ -35,7 +35,7 @@ You are the sole holder of global state, responsible for orchestrating a profess
 - **Expert Panel Token Budget**: Each expert subagent receives the full review package (PRD + analyze + solution summaries). With 5 parallel experts, this is 5× the context. Always pass solution **summaries** (not full detailed solutions) to experts. The hard cap of 5 experts is both a quality and resource constraint.
 - **Expert Veto Override**: Users can override expert vetoes at Checkpoint 3, but the Director must ensure they explicitly acknowledge the flagged risks. Never silently proceed past a veto.
 - **Design Checkpoint Stale State**: `design_checkpoint` in state.md must be reset to `null` when entering the design phase. Stale checkpoint values from a previous iteration can cause the Director to skip steps.
-- **Output Truncation**: Subagent tasks that are too large may produce truncated output (stalled mid-generation or cut off). After every subagent returns, the Director MUST run Output Integrity Validation (Phase Invocation Flow step 4.5) before proceeding to Process Output. Never assume a returned output is complete — always verify against the phase's required-section checklist in `references/output-validation.md`.
+- **Output Truncation**: Subagent tasks that are too large may produce truncated output (stalled mid-generation or cut off). After every subagent returns, the Director MUST run Output Integrity Validation (Phase Invocation Flow step 5) before proceeding to Process Output. Never assume a returned output is complete — always verify against the phase's required-section checklist in `references/output-validation.md`.
 
 ## Core Flow
 
@@ -51,7 +51,7 @@ flowchart LR
 
 ### Startup
 
-> See `references/startup.md` for detailed startup steps and config schema.
+> See `references/startup.md` for detailed startup steps, config schema, and **Resume Protocol** (recovering from interrupted sessions).
 
 1. **Determine Workspace and Task ID**: Check project config → check `config.json` → ask user → use default `.surge`
 2. **Initialize Context Package**: Run `<surge_skill_dir>/scripts/init.sh <surge_root> <task_id>` to create directories, then write the PRD to `context.md`. Be sure to find the script based on your current execution path (e.g., `bash tools/surge/scripts/init.sh ...`).
@@ -61,6 +61,8 @@ flowchart LR
 
 **Fast Startup**: If the user's intent is clear and the PRD is sufficient, steps 3-5 can be combined into a one-time display for the user to confirm at once. **However, `surge_root` (Step 1) and deliverable paths (`project_root` / `output_dir` in Step 4) MUST be explicitly asked—never silently use defaults.**
 
+**Rules Loading**: After Startup completes and before entering the Main Iteration Loop, the Director MUST read `{surge_root}/rules.md` into active context. This file contains NEVER/ALWAYS/PREFER constraints that act as guardrails throughout execution. If the file does not exist (e.g., `init.sh` was skipped), copy from `assets/rules.md` first.
+
 ### Main Iteration Loop
 
 Each iteration executes 5 Phases sequentially. The QA conclusion dictates whether to continue:
@@ -68,7 +70,7 @@ Each iteration executes 5 Phases sequentially. The QA conclusion dictates whethe
 | Phase | Dispatch Mode | Prompt Source | Details |
 |-------|---------------|---------------|---------|
 | analyze | Single agent | `references/phases/analyze.md` + topology role + `context.md` | — |
-| research | Single agent (skippable) | `references/phases/research.md` + `iter_{N}_analyze.md` | — |
+| research | Director-orchestrated (skippable) | `references/phases/research.md` + `iter_{N}_analyze.md` | See Research Orchestration below |
 | design | Director-orchestrated | `references/phases/design.md` + analyze + research (if any) + `deliverables.md` | See Expert Review below |
 | implement | Single/Multi agent | `references/phases/implement.md` + design + `deliverables.md` | See Parallel Orchestration below |
 | qa | Single agent | `references/phases/qa.md` + implement + `acceptance.md` + `test_cases.md` + eval level | — |
@@ -78,10 +80,12 @@ Each iteration executes 5 Phases sequentially. The QA conclusion dictates whethe
 2. Read `topology.md` to get the customized role for this Phase, replacing the default description after `<!-- DEFAULT_ROLE -->` in the template.
 3. Read required context files and concatenate into a complete subagent prompt.
 4. Dispatch the subagent via the Agent tool.
-5. **[MANDATORY] Output Integrity Validation**: Read the expected output file and validate against the phase's required-section checklist in `references/output-validation.md`. Classify as PASS / MINOR_TRUNCATION / SEVERE_TRUNCATION. If not PASS, execute the corresponding recovery strategy (see `references/output-validation.md`) before proceeding. Do NOT skip to Process Output on a non-PASS result.
+5. **[MANDATORY] Output Integrity Validation**: Read the expected output file(s) and validate against the phase's required-section checklist in `references/output-validation.md`. Classify as PASS / MINOR_TRUNCATION / SEVERE_TRUNCATION. If not PASS, execute the corresponding recovery strategy (see `references/output-validation.md`) before proceeding. Do NOT skip to Process Output on a non-PASS result. **For multi-output phases (design, research)**: validate each output file independently; for research, raw materials are validated incrementally during the Director loop — only the summary document goes through post-phase validation.
 6. **[MANDATORY] After validation passes, show a process summary to the user** (see "Process Output" below). **Do NOT proceed to the next Phase without showing a progress summary.**
 
 > The files under `references/phases/` are prompt templates. They should be read via the Read tool and injected into the subagent prompt, **NOT invoked via the Skill tool**.
+
+**Research Phase Exception**: The research phase does NOT follow the standard single-agent dispatch. Instead, the Director orchestrates an interactive tree-structured research loop: dispatching subagents to perform WebSearch/WebFetch, then presenting scored results to the user for pruning decisions at each layer. The Director controls the loop, user interaction, and pruning; subagents only execute search/fetch tasks. See `references/phases/research.md` for the complete Director-orchestrated flow.
 
 **Design Phase Exception**: The design phase does NOT follow the standard single-agent dispatch above. Instead, the Director orchestrates a multi-step flow with expert subagent dispatch and 4 user checkpoints. See `references/phases/design.md` for the complete Director-orchestrated flow.
 
@@ -106,7 +110,7 @@ If obvious dead links or naming conflicts are found, dispatch an agent to fix th
 | Phase | Required Process Content |
 |-------|--------------------------|
 | analyze | Number of key requirements, ambiguities, and high-risk items identified (list IDs and 1-sentence descriptions). |
-| research | **Key findings from web search/fetch** (source URLs, core conclusions), pruning decisions of the research tree, and **number of raw material files saved** (with directory path). |
+| research | **Key findings from web search/fetch** (source URLs, core conclusions), pruning decisions at each layer, and **number of raw material files saved** (with directory path). Note: because research is Director-orchestrated with per-layer user interaction, progress is shown incrementally during the phase — the post-phase summary covers the final summary document only. |
 | design | Checkpoint 4 (Design Confirmation) serves as the process summary. No separate post-phase summary needed — the 4 checkpoints provide transparency throughout the phase. |
 | implement | Module name completed by each subagent, output file paths, lines of code, **edge cases discovered** (if any). |
 | qa | Number of Passed/Partial/Failed items, quality score changes, P0 issue list. |
@@ -204,11 +208,11 @@ After retro finishes:
 
 | File | Content | When to Read |
 |------|---------|--------------|
-| `references/startup.md` | Detailed startup steps, config schema, config.json logic | First startup |
+| `references/startup.md` | Detailed startup steps, config schema, config.json logic, Resume Protocol | First startup or session resume |
 | `references/qa-handling.md` | QA 3-value logic, convergence, deviations, test evolution, lightweight paths, directive verification | After QA results |
 | `references/state-schema.md` | state.md field definitions and update rules | When updating state |
 | `references/output-structure.md` | Directory structure, file naming rules | When confirming paths |
-| `assets/rules.md` | Stable constraints (NEVER/ALWAYS/PREFER) | Copied to surge_root on start |
+| `assets/rules.md` | Stable constraints (NEVER/ALWAYS/PREFER) | Copied to surge_root on start; Director reads `{surge_root}/rules.md` after Startup before first iteration |
 | `scripts/init.sh` | Initializes Context Package | Startup Step 2 |
 | `scripts/state.sh` | Reads/Updates state.md fields | Every state change |
 | `scripts/merge-parallel.sh` | Merges parallel implement outputs | After parallel implement |

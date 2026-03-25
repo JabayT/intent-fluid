@@ -78,11 +78,16 @@ current_eval_level: "L1"        # Current evaluation tier: "L1" | "L1+L2" | "L1+
                                 # NOTE: If deliverable_type is "document", override to "L1+L2" for Round 1
                                 # (documents rely heavily on L2 attributes like terminology consistency)
 last_quality_assessment: null   # Quality evaluation summary of previous round, for cross-round comparison
+quality_history: []             # Evaluation records per round, for trend analysis & oscillation detection
+optimization_directives: []    # Directives injected in prev round, for QA to verify execution
 plateau_count: 0                # Number of consecutive rounds without substantial change
 status: in_progress
 max_iterations: 5
 parallel_agent_limit: 10
 notes: ""
+expert_roles: []               # Current task's expert role list, set at design Checkpoint 2
+design_checkpoint: null        # Design phase progress tracking
+expert_review_summary: null    # Path to latest expert review synthesis report
 ```
 
 Parse `max_iterations` and `parallel_agent_limit` from user input to override defaults 5 and 10 respectively.
@@ -301,3 +306,65 @@ Config file is stored at `${CLAUDE_PLUGIN_DATA}/config.json`. If this env var is
   > Keep previous config or modify?
 
 If the user chooses to keep it, skip the corresponding interactive steps. If modify, enter the full interactive process and update config.json.
+
+---
+
+## Resume Protocol (Recovering from Interrupted Sessions)
+
+When a new session starts and the user asks to resume a previously interrupted surge task (or the Director detects an existing in-progress task), follow this protocol instead of the normal Startup flow.
+
+### Detection
+
+The Director checks for an existing task in one of two ways:
+
+1. **User provides task path**: User says "resume surge task X" or provides a `{surge_root}/tasks/{task_id}/` path.
+2. **Director scans on startup**: If `config.json` exists, read `surge_root`, then scan `{surge_root}/tasks/` for directories containing a `state.md` with `status: "in_progress"`. If exactly one is found, propose resuming it. If multiple are found, list them and ask the user which to resume.
+
+### Validation Steps
+
+After identifying the task directory, the Director MUST validate before resuming:
+
+1. **Read `state.md`**: Parse all fields. Confirm `status` is `"in_progress"` (if `"done"` or `"terminated_by_user"`, inform user the task is already finished).
+2. **Resolve absolute paths**: Set `task_dir`, `state_file`, `iterations_dir` to absolute paths (same as normal startup Step 2).
+3. **Read `{surge_root}/rules.md`**: Load guardrail constraints into active context.
+4. **Verify core files exist**: Check that `context.md`, `topology.md`, `deliverables.md`, `acceptance.md` all exist and are non-empty. If any are missing, report to user — these indicate the task was interrupted during startup and cannot be resumed; a fresh start is needed.
+5. **Identify last completed phase output**: Based on `current_phase` and `iteration` in `state.md`, check which phase outputs exist in `iterations/`:
+   - Glob for `iter_{NN}_*.md` where `NN` is the current iteration number.
+   - Determine the last phase that produced a valid output file.
+6. **Validate last output integrity**: Run the output validation checklist from `references/output-validation.md` on the last phase output. Classify as PASS / MINOR_TRUNCATION / SEVERE_TRUNCATION.
+
+### Resume Decision Table
+
+| `current_phase` in state.md | Last Valid Output Found | Action |
+|------------------------------|------------------------|--------|
+| Phase X | Output for Phase X exists and PASS | Phase X completed successfully; advance to next phase |
+| Phase X | Output for Phase X exists but MINOR/SEVERE_TRUNCATION | Re-enter Phase X with recovery procedures |
+| Phase X | No output for Phase X | Re-enter Phase X from scratch |
+| Phase X | Output for Phase X-1 exists but not Phase X | Phase X was never started; enter Phase X normally |
+
+### User Confirmation
+
+Before resuming, present a summary to the user:
+
+```
+Resume Detected — Task {task_id}
+---
+Iteration: {iteration} (type: {iteration_type})
+Last Phase: {current_phase}
+Last Output: {last valid output file or "none"}
+Output Status: {PASS / TRUNCATED / MISSING}
+Eval Level: {current_eval_level}
+Plateau Count: {plateau_count}
+Remaining Rounds: {max_iterations - iteration + 1}
+---
+
+Options:
+  A) Resume from {recommended resume point}
+  B) Roll back to an earlier phase (specify)
+  C) Restart iteration from analyze
+  D) Terminate task, enter retro
+```
+
+### Post-Resume
+
+After the user confirms, the Director enters the Main Iteration Loop at the determined phase. All normal rules apply (Phase Invocation Flow, Output Validation, Process Output, etc.).

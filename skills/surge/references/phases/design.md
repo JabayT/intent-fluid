@@ -8,7 +8,7 @@ Director-orchestrated (NOT single-agent). The Director is active throughout Step
 - Expert dispatch and synthesis
 - Detailed design production
 
-Steps 8–10 are deterministic post-processing by the Director.
+Steps 8–10 are Director-executed post-processing (no subagent dispatch, no user checkpoint), but require analytical judgment (module decomposition, volume estimation, shared context extraction).
 
 ## Trigger
 

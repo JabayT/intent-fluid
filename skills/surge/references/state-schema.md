@@ -225,3 +225,38 @@ Acceptance Criteria Modified
 - Update `current_phase` before entering each new Phase.
 - `iteration` +1 at the start of each iteration.
 - Batch update relevant fields when processing QA results.
+
+---
+
+## scripts/state.sh Usage and Constraints
+
+### Runtime Prerequisite
+
+`state.sh` requires **Node.js** (any version with `fs` module — Node 12+). If Node.js is not available in the environment, the Director must fall back to manual Read/Edit operations on `state.md`, following the format constraints below strictly.
+
+### YAML Format Constraints
+
+`state.sh` uses regex-based parsing (not a full YAML parser). To ensure correct read/write behavior, `state.md` MUST adhere to these format rules:
+
+1. **Root-level fields only**: Every field starts at column 0 with `field_name:`. No nested YAML objects at the root level.
+2. **Single-line scalar values**: Strings, numbers, and `null` are written on the same line as the key (e.g., `current_phase: analyze`).
+3. **Quoted strings stay quoted**: Fields initialized with quotes (e.g., `iteration_type: "full"`) must remain quoted on update. `state.sh` preserves quoting automatically.
+4. **Array indentation**: Array fields (`quality_history`, `optimization_directives`, `expert_roles`) use YAML block sequence format with **2-space indentation** for each `- ` element. Example:
+   ```yaml
+   quality_history:
+     - iteration: 1
+       dimensions: "..."
+       conclusion: "Pass-Optimizable"
+     - iteration: 2
+       dimensions: "..."
+       conclusion: "Pass-Converged"
+   ```
+5. **No inline comments after values**: Comments are allowed only on their own line or at the end of the initial template. Do not add comments after values during updates (e.g., do NOT write `iteration: 3  # bumped`).
+6. **No duplicate field names**: Each field name appears exactly once. Duplicate names cause the regex to match only the first occurrence.
+7. **Values must not contain unescaped colons at line start**: If a multi-line value contains a line starting with `word:`, it will be misinterpreted as a new field. Indent such lines by at least 2 spaces.
+
+### Argument Order Reminder
+
+The correct argument order is: `state.sh <subcommand> <state_file> <field> [value]`
+
+A common error is: `state.sh <state_file> <subcommand> ...` — this produces the confusing message `Error: state file does not exist: set` because it interprets the subcommand as the file path.
