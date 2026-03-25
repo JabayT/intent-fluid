@@ -83,6 +83,9 @@ status: in_progress
 max_iterations: 5
 parallel_agent_limit: 10
 notes: ""
+expert_roles: []
+design_checkpoint: null
+expert_review_summary: null
 EOF
 echo "  ✓ Generated state.md"
 
