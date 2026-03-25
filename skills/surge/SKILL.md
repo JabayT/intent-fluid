@@ -35,6 +35,7 @@ You are the sole holder of global state, responsible for orchestrating a profess
 - **Expert Panel Token Budget**: Each expert subagent receives the full review package (PRD + analyze + solution summaries). With 5 parallel experts, this is 5× the context. Always pass solution **summaries** (not full detailed solutions) to experts. The hard cap of 5 experts is both a quality and resource constraint.
 - **Expert Veto Override**: Users can override expert vetoes at Checkpoint 3, but the Director must ensure they explicitly acknowledge the flagged risks. Never silently proceed past a veto.
 - **Design Checkpoint Stale State**: `design_checkpoint` in state.md must be reset to `null` when entering the design phase. Stale checkpoint values from a previous iteration can cause the Director to skip steps.
+- **Output Truncation**: Subagent tasks that are too large may produce truncated output (stalled mid-generation or cut off). After every subagent returns, the Director MUST run Output Integrity Validation (Phase Invocation Flow step 4.5) before proceeding to Process Output. Never assume a returned output is complete — always verify against the phase's required-section checklist in `references/output-validation.md`.
 
 ## Core Flow
 
@@ -77,7 +78,8 @@ Each iteration executes 5 Phases sequentially. The QA conclusion dictates whethe
 2. Read `topology.md` to get the customized role for this Phase, replacing the default description after `<!-- DEFAULT_ROLE -->` in the template.
 3. Read required context files and concatenate into a complete subagent prompt.
 4. Dispatch the subagent via the Agent tool.
-5. **[MANDATORY] After subagent returns, show a process summary to the user** (see "Process Output" below). **Do NOT proceed to the next Phase without showing a progress summary.**
+5. **[MANDATORY] Output Integrity Validation**: Read the expected output file and validate against the phase's required-section checklist in `references/output-validation.md`. Classify as PASS / MINOR_TRUNCATION / SEVERE_TRUNCATION. If not PASS, execute the corresponding recovery strategy (see `references/output-validation.md`) before proceeding. Do NOT skip to Process Output on a non-PASS result.
+6. **[MANDATORY] After validation passes, show a process summary to the user** (see "Process Output" below). **Do NOT proceed to the next Phase without showing a progress summary.**
 
 > The files under `references/phases/` are prompt templates. They should be read via the Read tool and injected into the subagent prompt, **NOT invoked via the Skill tool**.
 
@@ -134,9 +136,20 @@ In your final reply (not the content written to the file), please provide an add
 
 ### Phase Failure Handling
 
-1. Output file missing or incomplete → Retry once (passing more explicit instructions).
-2. Retry fails again → Inform user, provide options: Skip (if non-critical Phase) / User provides manually / Terminate.
-3. Permission issues → Report immediately, do not retry.
+> Complete validation rules and recovery procedures are in `references/output-validation.md`.
+
+1. **SEVERE_TRUNCATION** (file missing/empty, or ≥3 required sections absent, or conclusion missing):
+   a. **Scoped Retry**: Re-dispatch with anti-truncation instructions (explicit section checklist, end-marker request, scope reduction for large tasks).
+   b. **Task Splitting Retry**: If scoped retry also truncates, split the phase work into 2+ sub-tasks per the phase-specific splitting strategy in `references/output-validation.md`, dispatch sub-tasks, merge results.
+   c. **User Escalation**: If splitting also fails, present attempts made, missing content, and partial output to user with options (retry with guidance / accept partial / skip / terminate).
+
+2. **MINOR_TRUNCATION** (file exists with substantial content, but 1-2 non-critical sections missing):
+   a. **Completion Retry**: Dispatch a subagent to read the existing output and append only the missing sections.
+   b. If completion retry fails, escalate to SEVERE_TRUNCATION handling (step 1).
+
+3. **Permission issues** → Report immediately, do not retry.
+
+4. **Cross-iteration truncation pattern**: If the same phase truncates in 2+ consecutive iterations, record `[TRUNCATION_RISK]` in `memory_draft.md` and proactively apply scope reduction or pre-splitting in subsequent iterations before the first attempt.
 
 ### QA Results Handling
 
@@ -200,3 +213,4 @@ After retro finishes:
 | `scripts/state.sh` | Reads/Updates state.md fields | Every state change |
 | `scripts/merge-parallel.sh` | Merges parallel implement outputs | After parallel implement |
 | `references/expert-review.md` | Expert role library, subagent prompt template, synthesis report format | Design phase Steps 3-5 |
+| `references/output-validation.md` | Output integrity checks, severity classification, recovery procedures (completion/scoped/splitting retry) | After every subagent return (step 5) |

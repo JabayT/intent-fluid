@@ -15,6 +15,7 @@ These rules codify stable constraints validated during surge execution, using th
 - NEVER start expert review before the user confirms the expert panel at Checkpoint 2.
 - NEVER let expert review subagents access `state.md`; they receive only the review package defined in `references/expert-review.md`.
 - NEVER default to "Code Quality Reviewer" as the universal expert for document-type deliverables; use "Logical Consistency Reviewer" instead (see `references/expert-review.md`).
+- NEVER proceed past a SEVERE_TRUNCATION validation result (file missing/empty, ≥3 required sections absent, or conclusion missing) without at least one recovery attempt; truncated output propagates errors to all downstream phases and wastes subsequent iterations.
 
 ## ALWAYS
 
@@ -31,6 +32,8 @@ These rules codify stable constraints validated during surge execution, using th
 - ALWAYS ask the user when unable to auto-recommend 3+ expert roles from the PRD; don't proceed with fewer than 3 experts without user consent.
 - ALWAYS select the universal expert role based on `deliverable_type`, not on project type signals.
 - ALWAYS persist every WebSearch/WebFetch result to an individual file in `iter_{NN}_research/` during the research phase, with YAML frontmatter (seq, type, query, direction, layer, timestamp, relevance, importance). Raw content must be saved in full without truncation. The summary document (`iter_{NN}_research.md`) references these files instead of inlining full content.
+- ALWAYS validate subagent output integrity after every phase dispatch — read the output file and check against the phase's required-section checklist in `references/output-validation.md` — before proceeding to Process Output or the next phase.
+- ALWAYS include the end-marker instruction (`--- END OF {PHASE} OUTPUT ---`) when retrying a phase after truncation detection, so the Director can detect if the retried output was also truncated.
 
 ## PREFER
 
@@ -42,3 +45,5 @@ These rules codify stable constraints validated during surge execution, using th
 - PREFER running expert review subagents in parallel (not serial) to reduce design phase latency.
 - PREFER reusing the confirmed expert panel on Level 2 rollback (unless requirements changed at Level 3); re-confirming unchanged experts wastes user attention.
 - PREFER streamlined expert review during lightweight iterations: only dispatch experts relevant to QA-flagged optimization dimensions, skip Checkpoints 1 and 2.
+- PREFER completion retry (dispatching a subagent to append only missing sections) over full retry when the existing output covers ≥60% of required sections, to avoid discarding valid work.
+- PREFER proactive task splitting for phases that truncated in a previous iteration, rather than waiting for truncation to recur and then recovering.
