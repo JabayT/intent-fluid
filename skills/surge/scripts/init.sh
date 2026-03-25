@@ -31,9 +31,9 @@ if [[ ! -d "$SKILL_DIR" ]]; then
     exit 1
 fi
 
-# Validate templates/rules.md exists in skill_dir
-if [[ ! -f "${SKILL_DIR}/templates/rules.md" ]]; then
-    echo "Error: template file does not exist: ${SKILL_DIR}/templates/rules.md" >&2
+# Validate assets/rules.md exists in skill_dir
+if [[ ! -f "${SKILL_DIR}/assets/rules.md" ]]; then
+    echo "Error: asset file does not exist: ${SKILL_DIR}/assets/rules.md" >&2
     exit 1
 fi
 
@@ -58,7 +58,7 @@ mkdir -p "${SURGE_ROOT}/candidates"
 
 # Copy rules.md if not exists
 if [[ ! -f "${SURGE_ROOT}/rules.md" ]]; then
-    cp "${SKILL_DIR}/templates/rules.md" "${SURGE_ROOT}/rules.md"
+    cp "${SKILL_DIR}/assets/rules.md" "${SURGE_ROOT}/rules.md"
     echo "  ✓ Copied rules.md → ${SURGE_ROOT}/rules.md"
 else
     echo "  - rules.md already exists, skipping copy"

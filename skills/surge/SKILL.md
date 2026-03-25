@@ -18,14 +18,19 @@ You are the sole holder of global state, responsible for orchestrating a profess
 > These are the most common failure modes and take priority over all subsequent rules.
 
 - **Startup Fatigue**: The 5-step negotiation in the startup process can cause users to lose patience. If the user provides a complete PRD and their intent is clear, try to use reasonable defaults to skip unnecessary confirmations, presenting configurations all at once for the user to confirm or modify.
+  **However, the following questions MUST NEVER be skipped, even if the PRD is comprehensive—always ask the user explicitly:**
+  (1) The workspace directory `surge_root` location (Step 1)
+  (2) The deliverable type and corresponding `project_root` or `output_dir` (Step 4)
+  These path values cannot be inferred from the PRD; skipping them will cause files to be written to the wrong location.
 - **Research Scope Creep**: The research phase can easily go too deep and consume massive tokens. If analyze doesn't identify high-risk technical issues in the first round, skip research directly.
-- **QA Never Converges**: QA tends to give "Pass-Optimizable" rather than "Pass-Converged". If all acceptance criteria have passed and the quality evaluation has no "Insufficient" items, lean towards declaring convergence.
+- **QA Never Converges**: QA tends to give "Pass-Optimizable" rather than "Pass-Converged". If all acceptance criteria have passed and the quality evaluation has no "Insufficient" items, lean towards declaring convergence. **Specific rule**: When ALL quality dimensions are ≥ Good AND all acceptance criteria at the current evaluation level pass, the Director SHOULD declare convergence and enter retro, regardless of the QA's three-value output.
 - **Parallel Implement Missing Context**: Each subagent MUST receive `deliverables.md` + its own task package + `context.md`. None can be missing.
-- **state.md Field Omission**: When updating state.md, ALWAYS use the `scripts/state.sh` script rather than manual editing to avoid missing fields like plateau_count, quality_history, optimization_directives.
+- **state.md Field Omission**: When updating state.md, ALWAYS use the `scripts/state.sh` script rather than manual editing to avoid missing fields like plateau_count, quality_history, optimization_directives. The correct argument order is `state.sh <subcommand> <state_file> <field> [value]` (subcommand first, then file). A common error is passing the file first, which produces the confusing message `Error: state file does not exist: set`.
+- **CWD Drift After Subagent**: Subagents may run `cd` commands (e.g., `cd project_root && npm run build`), which changes the working directory for the entire session. After a subagent returns, the Director's relative paths (e.g., `./workspace/tasks/...`) will resolve incorrectly. **Always use absolute paths** for `state.sh` calls and all file I/O. Resolve `surge_root` and `task_dir` to absolute paths at startup and store them.
 - **Over-Formatting**: Phase templates list required sections, but do not demand precise markdown formatting. Let the subagent choose how to express the content.
 - **Quality Oscillation**: If `quality_history` shows the same dimension bouncing back and forth for 3 consecutive rounds (e.g., Basic→Good→Basic), the optimization direction for that dimension has internal conflicts. Do not blindly continue optimizing; lock that dimension or ask the user to rule on priorities.
 - **Optimization Directives Fail**: If the same optimization directive is marked as "Unexecuted" by QA for two consecutive rounds, do not inject it a third time. Explain the situation to the user during the Iteration Review and request guidance.
-- **Missing Process Output**: After a subagent returns, you MUST show a process summary to the user (key findings, info sources, output paths). Don't just say "done" and skip to the next step—users need to see intermediate content to judge the direction, and need progress indicators to confirm the agent is still working.
+- **Missing Process Output**: After a subagent returns, you MUST show a process summary to the user (key findings, info sources, output paths). Don't just say "done" and skip to the next step—users need to see intermediate content to judge the direction, and need progress indicators to confirm the agent is still working. **This is a mandatory obligation for the Director after every Phase—not optional. Violating this rule is equivalent to a process interruption.**
 
 ## Core Flow
 
@@ -49,7 +54,7 @@ flowchart LR
 4. **Deliverables Negotiation**: Confirm deliverable_type (code/document/mixed), project root, language/framework, etc., and write to `deliverables.md`.
 5. **Acceptance Criteria Negotiation**: Generate L1/L2/L3 tiered acceptance plans and write to `acceptance.md`.
 
-**Fast Startup**: If the user's intent is clear and the PRD is sufficient, steps 3-5 can be combined into a one-time display for the user to confirm at once.
+**Fast Startup**: If the user's intent is clear and the PRD is sufficient, steps 3-5 can be combined into a one-time display for the user to confirm at once. **However, `surge_root` (Step 1) and deliverable paths (`project_root` / `output_dir` in Step 4) MUST be explicitly asked—never silently use defaults.**
 
 ### Main Iteration Loop
 
@@ -57,20 +62,20 @@ Each iteration executes 5 Phases sequentially. The QA conclusion dictates whethe
 
 | Phase | Dispatch Mode | Prompt Source | Details |
 |-------|---------------|---------------|---------|
-| analyze | Single agent | `phases/analyze.md` + topology role + `context.md` | — |
-| research | Single agent (skippable) | `phases/research.md` + `iter_{N}_analyze.md` | — |
-| design | Single agent | `phases/design.md` + analyze + research (if any) | — |
-| implement | Single/Multi agent | `phases/implement.md` + design + `deliverables.md` | See Parallel Orchestration below |
-| qa | Single agent | `phases/qa.md` + implement + `acceptance.md` + `test_cases.md` + eval level | — |
+| analyze | Single agent | `references/phases/analyze.md` + topology role + `context.md` | — |
+| research | Single agent (skippable) | `references/phases/research.md` + `iter_{N}_analyze.md` | — |
+| design | Single agent | `references/phases/design.md` + analyze + research (if any) | — |
+| implement | Single/Multi agent | `references/phases/implement.md` + design + `deliverables.md` | See Parallel Orchestration below |
+| qa | Single agent | `references/phases/qa.md` + implement + `acceptance.md` + `test_cases.md` + eval level | — |
 
 **Phase Invocation Flow**:
-1. Read `phases/{phase}.md` to get the prompt template.
+1. Read `references/phases/{phase}.md` to get the prompt template.
 2. Read `topology.md` to get the customized role for this Phase, replacing the default description after `<!-- DEFAULT_ROLE -->` in the template.
 3. Read required context files and concatenate into a complete subagent prompt.
 4. Dispatch the subagent via the Agent tool.
-5. **After subagent returns, show a process summary to the user** (see "Process Output" below).
+5. **[MANDATORY] After subagent returns, show a process summary to the user** (see "Process Output" below). **Do NOT proceed to the next Phase without showing a progress summary.**
 
-> The files under `phases/` are prompt templates. They should be read via the Read tool and injected into the subagent prompt, **NOT invoked via the Skill tool**.
+> The files under `references/phases/` are prompt templates. They should be read via the Read tool and injected into the subagent prompt, **NOT invoked via the Skill tool**.
 
 **File Naming Rules**: All phase output files use `iter_{NN}_{phase}.md` (NN is a 2-digit zero-padded iteration number).
 
@@ -105,6 +110,8 @@ If obvious dead links or naming conflicts are found, dispatch an agent to fix th
   • CrewAI/AutoGen/LangGraph have no auto-topology generation (blank space confirmed).
   → Output: iter_01_research.md (xxx lines)
 ```
+
+**Director Self-Check**: If the subagent's response does not include a progress summary (the subagent may have ignored the Process Output Requirement), the Director MUST extract key information from the subagent's output files and present it to the user, rather than skipping the summary.
 
 **Cooperation Requirement in Subagent Prompt**: When the Director concatenates the subagent prompt, it MUST append the following instruction at the end:
 
@@ -164,7 +171,7 @@ Trigger Events: Requirement ambiguities, reusable components found, solutions re
 
 ## Upon Completion
 
-Dispatch the retro subagent via Agent tool (reading `phases/retro.md`), passing the entire Context Package path.
+Dispatch the retro subagent via Agent tool (reading `references/phases/retro.md`), passing the entire Context Package path.
 
 After retro finishes:
 - Display final deliverables summary and `retro.md` location.
@@ -180,7 +187,7 @@ After retro finishes:
 | `references/qa-handling.md` | QA 3-value logic, convergence, deviations, test evolution, lightweight paths, directive verification | After QA results |
 | `references/state-schema.md` | state.md field definitions and update rules | When updating state |
 | `references/output-structure.md` | Directory structure, file naming rules | When confirming paths |
-| `templates/rules.md` | Stable constraints (NEVER/ALWAYS/PREFER) | Copied to surge_root on start |
+| `assets/rules.md` | Stable constraints (NEVER/ALWAYS/PREFER) | Copied to surge_root on start |
 | `scripts/init.sh` | Initializes Context Package | Startup Step 2 |
 | `scripts/state.sh` | Reads/Updates state.md fields | Every state change |
 | `scripts/merge-parallel.sh` | Merges parallel implement outputs | After parallel implement |
