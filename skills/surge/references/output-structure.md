@@ -81,6 +81,24 @@ iter_{NN}_implement_{module}.md
 
 After all parallel subagents complete, the Director merges the module outputs into `iter_{NN}_implement.md`.
 
+### Expert Review Output Files (design phase)
+
+During the design phase's expert review steps, each expert subagent produces an individual review, and the Director generates a synthesis report:
+
+```
+iter_{NN}_expert_review_{role_slug}.md
+iter_{NN}_expert_synthesis.md
+```
+
+| Placeholder | Description | Example |
+|-------------|-------------|---------|
+| `{role_slug}` | Expert role title, lowercased, spaces → underscores | `backend_architect`, `security_expert` |
+
+**Examples**:
+- `iter_01_expert_review_backend_architect.md` — Round 1 Backend Architect's review
+- `iter_01_expert_review_security_expert.md` — Round 1 Security Expert's review
+- `iter_01_expert_synthesis.md` — Round 1 consolidated synthesis report
+
 ---
 
 ## Output Files for Each Phase
@@ -90,6 +108,8 @@ After all parallel subagents complete, the Director merges the module outputs in
 | analyze | `iter_{NN}_analyze.md` | Requirements analysis report |
 | research | `iter_{NN}_research.md` | Tech research report (optional, skippable) |
 | design | `iter_{NN}_design.md` | Architecture design doc, incl. parallel task list |
+| design (expert review) | `iter_{NN}_expert_review_{role_slug}.md` | Individual expert review from each panel member |
+| design (synthesis) | `iter_{NN}_expert_synthesis.md` | Consolidated expert review synthesis report |
 | implement | `iter_{NN}_implement.md` | Implementation report (merged file if parallel) |
 | implement (parallel sub) | `iter_{NN}_implement_{module}.md` | Independent report for each parallel module |
 | qa | `iter_{NN}_qa.md` | QA acceptance report, incl. three-value conclusion |
