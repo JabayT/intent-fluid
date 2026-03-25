@@ -24,6 +24,9 @@ status: "in_progress"                   # string  — Overall task status
 max_iterations: 5                       # number  — Max allowed iterations
 parallel_agent_limit: 10                 # number  — Max parallel agents limit
 notes: ""                               # string  — Free-form notes
+expert_roles: []                       # array   — Current task's expert role list (e.g., ["Backend Architect", "Security Expert"])
+design_checkpoint: null                # string? — Design phase progress: candidates_shown / experts_confirmed / review_done / design_confirmed
+expert_review_summary: null            # string? — Path to latest expert review synthesis report
 ```
 
 ---
@@ -146,6 +149,33 @@ notes: ""                               # string  — Free-form notes
 - **Update Timing**: Director records notes as needed.
 - **Description**: Free-form notes field.
 
+### expert_roles
+- **Type**: array
+- **Default**: `[]`
+- **Update Timing**: Set at design phase Checkpoint 2 when user confirms the expert panel.
+- **Persistence**: Persists across iterations. Preserved on Level 2 rollback (user can opt to change). Preserved during lightweight iterations. Only cleared on Level 3 rollback (requirements changed).
+- **Description**: List of confirmed expert role titles for the current task. Used to reuse the panel across iterations without re-asking the user.
+
+### design_checkpoint
+- **Type**: string | null
+- **Allowed Values**: `null` | `"candidates_shown"` | `"experts_confirmed"` | `"review_done"` | `"design_confirmed"`
+- **Default**: `null`
+- **Update Timing**: Reset to `null` when entering the design phase. Updated at each checkpoint within the design phase.
+- **Reset Conditions**:
+  - Entering design phase (any iteration): Reset to `null`
+  - Fail (any deviation level): Reset to `null`
+  - Pass-Converged: Frozen with final value
+- **Description**: Tracks progress through the design phase's 4 user checkpoints. Prevents the Director from skipping steps and enables resumption if interrupted.
+
+### expert_review_summary
+- **Type**: string | null
+- **Default**: `null`
+- **Update Timing**: Set after the expert synthesis report is generated (Step 5). Updated with new path on each design iteration.
+- **Reset Conditions**:
+  - Fail (any deviation level): Reset to `null`
+  - Pass-Converged: Frozen with final value
+- **Description**: Absolute path to the latest expert review synthesis report. Used by the Director to reference expert recommendations during detailed design.
+
 ---
 
 ## Field Relationships
@@ -157,6 +187,9 @@ QA Conclusion: Fail
   → plateau_count = 0 (Reset)
   → quality_history appends this round
   → optimization_directives = [] (Clear)
+  → design_checkpoint = null (Reset)
+  → expert_review_summary = null (Reset)
+  → expert_roles preserved (unless Level 3)
 
 QA Conclusion: Pass-Optimizable (Unconverged)
   → current_eval_level = May elevate
@@ -165,6 +198,9 @@ QA Conclusion: Pass-Optimizable (Unconverged)
   → plateau_count = +1 if tier/positioning both identical, else 0
   → optimization_directives = Filtered directives list
   → iteration +1
+  → design_checkpoint = null if re-entering design (Reset at phase entry)
+  → expert_roles preserved
+  → expert_review_summary updated if design re-runs
 
 QA Conclusion: Pass-Converged / Pass-Optimizable (Converged)
   → status = "done"
@@ -172,6 +208,9 @@ QA Conclusion: Pass-Converged / Pass-Optimizable (Converged)
   → quality_history appends this round (Final record)
   → last_quality_assessment = This round's summary (Available for retro)
   → optimization_directives remains unchanged
+  → design_checkpoint frozen
+  → expert_review_summary frozen
+  → expert_roles frozen
 
 Acceptance Criteria Modified
   → acceptance_modifications +1
