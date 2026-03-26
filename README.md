@@ -71,10 +71,10 @@ See the full [Installation Guide](docs/INSTALL.md) for platform-specific instruc
 git clone https://github.com/carbonshow/intent-fluid.git
 ```
 
-| Platform | Command |
+| Platform | Integration Command / Method |
 |----------|---------|
-| Claude Code | `/plugin install intent-fluid@claude-plugins-official` |
-| Cursor | `/add-plugin intent-fluid` |
+| Claude Code | `/plugin marketplace add carbonshow/intent-fluid` |
+| Cursor | Add `https://github.com/carbonshow/intent-fluid` as a rule source or MCP server. |
 | Gemini CLI | `gemini extensions install https://github.com/carbonshow/intent-fluid` |
 
 ---
