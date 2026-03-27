@@ -64,6 +64,21 @@ A high-concept creative writing task. The goal is to architect and generate a mu
 * **Structural Coherence:** Does it provide a logical chapter-based structure with clear narrative functions (Exposition, Rising Action, etc.)?
 * **Success Metric:** The output should be a coherent "Master Concept" and "Chapter Outline" that feels both fresh and commercially viable in Chinese.
 
+## ⚔️ Test Case 05: Architectural Trap & Expert Veto (Multi-Agent Adversarial)
+
+**File:** `titan-rank.md`
+
+### 🏗️ Scenario
+
+A backend architecture design task for a global MMO leaderboard. The PRD intentionally includes a fatal "trap": it demands handling 500,000 TPS while simultaneously mandating a strict constraint to use synchronous writes to a relational database (PostgreSQL/MySQL).
+
+### 🎯 Test Objectives
+
+* **Trap Detection:** Do the specialized subagents (DBA, Performance Engineer) in the Expert Review phase detect the physical impossibility of the constraint?
+* **Adversarial Veto:** Does the expert successfully issue a `[VETO]` against the PRD's own core requirement?
+* **Director Synthesis & Correction:** Can the Director agent synthesize this conflict, reject the naive initial design, and negotiate/pivot to a viable high-concurrency architecture (e.g., Redis + Async persistence)?
+* **Success Metric:** The pipeline MUST initially fail/flag the design at the Expert Review checkpoint and successfully self-correct (or prompt the user for a constraint relaxation) rather than blindly implementing a flawed system.
+
 ## 📈 Evaluation Framework
 
 To evaluate the iteration quality of the **Intent-Fluid** skill, use the following rubric:
